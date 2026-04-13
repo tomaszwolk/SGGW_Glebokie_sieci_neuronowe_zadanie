@@ -1,0 +1,35 @@
+# Ustawienia ścieżek
+paths:
+  data_file: "data/konstytucja_rp_z_dnia_2_04_1997.md"
+  db_path: "./qdrant_db"
+  log_file: "logs/rag_app.log"
+
+# Ustawienia Embeddingów (Baza wektorowa)
+embedding:
+  model_name: "intfloat/multilingual-e5-large"
+  collection_name: "konstytucja_rp"
+  vector_size: 1024
+  top_k: 3
+
+# Ustawienia Modelu Językowego (LLM)
+llm:
+  base_url: "http://localhost:1234/v1"
+  model_name: "bielik-11b-v2.3-instruct"
+  temperature: 0.0
+  api_key: "lm-studio"
+  max_session_tokens: 32768
+  system_prompt: >
+    Jesteś asystentem prawnym specjalizującym się w Konstytucji RP.
+    Odpowiadaj WYŁĄCZNIE na podstawie dostarczonego poniżej kontekstu.
+    Jeśli w dostarczonym kontekście nie ma informacji pozwalających na odpowiedź,
+    napisz dokładnie: 'Konstytucja RP nie reguluje tej kwestii.'
+    Nie używaj swojej wiedzy ogólnej. Zawsze powołuj się na numer artykułu w swojej odpowiedzi.
+
+# Ustawienia UI
+ui:
+  title: "Konstytucja RP - Asystent AI"
+  page_icon: "🇵🇱"
+  layout: "centered"
+  description: >
+    Zadaj pytanie dotyczące ustroju państwa, praw lub obowiązków obywatelskich.
+    System odpowie **wyłącznie** na podstawie Konstytucji Rzeczypospolitej Polskiej.

@@ -1,0 +1,19 @@
+[project]
+name = "zadanie-zaliczeniowe"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12.13"
+dependencies = [
+    "fastembed>=0.8.0",
+    "loguru>=0.7.3",
+    "openai>=2.31.0",
+    "openai-responses>=0.13.1",
+    "pyyaml>=6.0.3",
+    "qdrant-client>=1.17.1",
+    "streamlit>=1.56.0",
+]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"

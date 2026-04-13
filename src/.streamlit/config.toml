@@ -1,0 +1,5 @@
+[theme]
+primaryColor = "#d32f2f" # Czerwony
+backgroundColor = "#ffffff" # Biały
+secondaryBackgroundColor = "#f0f2f6"  # Szary
+textColor = "#262730"  # Ciemny
