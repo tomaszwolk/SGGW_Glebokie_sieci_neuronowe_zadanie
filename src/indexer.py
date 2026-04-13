@@ -97,6 +97,7 @@ def create_index(
         collection_name=COLLECTION_NAME,
         points=points
     )
+    client.close()
 
     logger.info(
         "Sukces! Zapisano "

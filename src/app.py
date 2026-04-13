@@ -5,6 +5,7 @@ from config_loader import cfg
 from stream_utils import parse_stream
 from streamlit.delta_generator import DeltaGenerator
 from functools import partial
+from qdrant_client import QdrantClient
 
 MAX_CONTEXT_TOKENS = cfg["llm"]["max_session_tokens"]
 
@@ -35,7 +36,22 @@ db_path = Path(cfg["paths"]["db_path"])
 collection_name = cfg['embedding']['collection_name']
 collection_dir = db_path / "collection" / collection_name
 
-if not collection_dir.exists():
+
+def collection_has_data() -> bool:
+    try:
+        client = QdrantClient(path=str(db_path))
+        exists = client.collection_exists(collection_name)
+        if not exists:
+            client.close()
+            return False
+        count = client.count(collection_name).count
+        client.close()
+        return count > 0
+    except Exception:
+        return False
+
+
+if not collection_has_data():
     logger.info("Baza wektorowa nie istnieje — uruchamiam indeksowanie...")
     from indexer import create_index
 
