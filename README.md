@@ -10,6 +10,7 @@ Projekt w 100% lokalnego i bezpiecznego systemu **RAG (Retrieval-Augmented Gener
 - **Inteligentne cytowanie źródeł:** System podaje dokładny numer artykułu pod odpowiedzią. Jeśli pytanie wykracza poza zakres Konstytucji (Out-of-Domain), asystent grzecznie odmawia i nie wyświetla pustych źródeł.
 - **Zarządzanie temperaturą:** Możliwość sterowania "kreatywnością" modelu bezpośrednio z panelu UI.
 - **Zarządzanie ilością pobranych artykułów:** Możliwość sterowania ile artykułów jest przekazywane do LLMa.
+- **Buforowanie odpowiedzi (cache):** Aplikacja zapamiętuje odpowiedzi modelu w pamięci operacyjnej na czas trwania sesji. Ponowne zadanie identycznego pytania zwraca wynik natychmiastowo — bez wywołania LLM — zachowując przy tym efekt wizualny strumieniowania. Klucz bufora zależy od trzech parametrów: **treści pytania**, **temperatury** oraz **Top K**, dzięki czemu zmiana ustawień skutkuje wygenerowaniem świeżej odpowiedzi. W logach odnotowywana jest liczba zaoszczędzonych tokenów (input i output) przy każdym trafieniu w bufor.
 
 ## 🛠️ Stos technologiczny
 
@@ -21,7 +22,7 @@ Projekt w 100% lokalnego i bezpiecznego systemu **RAG (Retrieval-Augmented Gener
 - **Logowanie:** `loguru`
 - **Menedżer pakietów:** `uv`
 
----
+\---
 
 ## 🚀 Jak uruchomić projekt?
 
@@ -32,7 +33,6 @@ Do zarządzania pakietami zalecane jest użycie [uv](https://github.com/astral-s
 ```bash
 # 1. Sklonuj repozytorium
 git clone https://github.com/tomaszwolk/SGGW_Glebokie_sieci_neuronowe_zadanie.git
-cd konstytucja-rag
 
 # 2. Zainstaluj wymagane biblioteki
 uv sync
@@ -54,6 +54,7 @@ Upewnij się, że serwer działa na domyślnym porcie 1234. Zobaczysz komunikat 
 Kiedy serwer LM Studio działa, uruchom interfejs:
 
 ```bash
+cd src
 uv run streamlit run app.py
 ```
 
@@ -73,9 +74,10 @@ Aplikacja otworzy się automatycznie w Twojej przeglądarce pod adresem http://l
 │   ├── config_loader.py # Skrypt ładujący konfigurację
 │   ├── config.yaml # Zcentralizowana konfiguracja systemu
 │   ├── indexer.py # Generowanie wektorów i zapis do Qdrant
-│   ├── logs/rag_logic.py # Główny silnik RAG i komunikacja z API LLM
-│   ├── rag_app.log # (Generowany) Plik z logami systemu
-│   └── stream_utils.py # Generator parsujący stream
+│   ├── rag_logic.py # Główny silnik RAG i komunikacja z API LLM
+│   ├── stream_utils.py # Parsowanie streamu, buforowanie odpowiedzi
+│   └── logs/
+│       └── rag_app.log # (Generowany) Plik z logami systemu
 └── README.md
 ```
 

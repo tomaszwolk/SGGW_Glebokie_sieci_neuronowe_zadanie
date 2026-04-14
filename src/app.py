@@ -2,10 +2,9 @@ import streamlit as st
 from pathlib import Path
 from loguru import logger
 from config_loader import cfg
-from stream_utils import parse_stream
+from stream_utils import parse_stream, fake_stream, get_cached_answer, cache_answer
 from streamlit.delta_generator import DeltaGenerator
 from functools import partial
-from qdrant_client import QdrantClient
 
 MAX_CONTEXT_TOKENS = cfg["llm"]["max_session_tokens"]
 
@@ -21,6 +20,14 @@ def on_progress(
     )
 
 
+# Konfiguracja loguru dla UI
+@st.cache_resource
+def _setup_logger():
+    return logger.add(cfg["paths"]["log_file"], rotation="1 MB", level="INFO")
+
+
+_setup_logger()
+
 # Konfiguracja strony Streamlit
 st.set_page_config(
     page_title=cfg["ui"]["title"],
@@ -28,25 +35,16 @@ st.set_page_config(
     layout=cfg["ui"]["layout"]
 )
 
-# Konfiguracja loguru dla UI
-logger.add(cfg["paths"]["log_file"], rotation="1 MB", level="INFO")
 
 # Automatyczne tworzenie bazy wiedzy, jeśli nie istnieje
 db_path = Path(cfg["paths"]["db_path"])
-collection_name = cfg['embedding']['collection_name']
-collection_dir = db_path / "collection" / collection_name
+collection_name = cfg["embedding"]["collection_name"]
+sqlite_path = db_path / "collection" / collection_name / "storage.sqlite"
 
 
 def collection_has_data() -> bool:
     try:
-        client = QdrantClient(path=str(db_path))
-        exists = client.collection_exists(collection_name)
-        if not exists:
-            client.close()
-            return False
-        count = client.count(collection_name).count
-        client.close()
-        return count > 0
+        return sqlite_path.exists() and sqlite_path.stat().st_size > 100_000
     except Exception:
         return False
 
@@ -144,13 +142,40 @@ if prompt := st.chat_input("Zadaj pytanie. Przykład: Kto wypowiada wojnę?"):
 
     # 2. Generowanie odpowiedzi asystenta
     with st.chat_message("assistant"):
-        stream, sources = ask_constitution_stream(prompt, temperature, top_k)
+        cached = get_cached_answer(prompt, temperature, top_k)
 
-        if stream:
-            # Pusty słownik na statystyki wyłapywane w locie
+        if cached is not None:
+            # --- ŚCIEŻKA CACHE HIT ---
+            # Identyczne zapytanie było już zadane w tej sesji — zwracamy
+            # zapamiętaną odpowiedź bez wywołania LLM. Efekt pisania zachowany
+            # dzięki fake_stream. Tokeny nie są zużywane.
+            cached_text, sources, saved_stats = cached
+            logger.info(
+                f"Cache hit dla zapytania: '{prompt}' | "
+                f"zaoszczędzono: {saved_stats['input']} input "
+                f"+ {saved_stats['output']} output tokens"
+            )
+            st.write_stream(fake_stream(cached_text))
+            answer_text = cached_text
             usage_stats = {"input": 0, "output": 0}
 
-            # st.write_stream automatycznie pisze na ekranie słowo po słowie
+        else:
+            # --- ŚCIEŻKA CACHE MISS ---
+            # Pierwsze zapytanie z tym kluczem — wywołujemy LLM i streamujemy
+            # odpowiedź w czasie rzeczywistym, po czym zapisujemy do cache.
+            stream, sources = ask_constitution_stream(prompt, temperature, top_k)
+
+            if not stream:
+                st.error(
+                    "Nie można połączyć się z LM Studio. "
+                    "Upewnij się, że jest uruchomione i załadowany model."
+                )
+                st.stop()
+
+            # Pusty słownik na statystyki wyłapywane w locie przez parse_stream
+            usage_stats = {"input": 0, "output": 0}
+
+            # st.write_stream strumieniuje tekst na ekran słowo po słowie
             # i zwraca pełny tekst (str) albo listę chunków — typ: str | list[Any]
             full_answer = st.write_stream(parse_stream(stream, usage_stats))
             answer_text = (
@@ -158,8 +183,15 @@ if prompt := st.chat_input("Zadaj pytanie. Przykład: Kto wypowiada wojnę?"):
                 if isinstance(full_answer, str)
                 else "".join(str(x) for x in full_answer)
             )
+            logger.info(
+                f"Odpowiedź: {answer_text[:500]}"
+                f"{'...' if len(answer_text) > 500 else ''} | "
+                f"Źródła: {', '.join(sources)}"
+            )
 
             # --- LOGIKA FILTROWANIA ŹRÓDEŁ ---
+            # Jeśli odpowiedź nie zawiera "art" i pasuje do frazy odmownej,
+            # czyścimy listę źródeł — model stwierdził brak regulacji w Konstytucji.
             if "art" not in answer_text.lower():
                 negative_responses = [
                     "konstytucja rp nie reguluje",
@@ -169,24 +201,24 @@ if prompt := st.chat_input("Zadaj pytanie. Przykład: Kto wypowiada wojnę?"):
                 if any(phrase in answer_text.lower() for phrase in negative_responses):
                     sources = []
 
-            # Wyświetlamy źródła po zakończeniu strumieniowania, jeśli są trafne
-            if sources:
-                st.caption(f"Źródła: {', '.join(sources)}")
+            # Zapisujemy do cache po odfiltrowaniu źródeł — kolejne identyczne
+            # zapytania dostaną już gotowy wynik bez wywołania LLM.
+            # usage_stats.copy() zapobiega mutacji zapisanych wartości przez późniejszy kod.
+            cache_answer(prompt, temperature, top_k, answer_text, sources, usage_stats.copy())
 
-            # Aktualizacja statystyk i historii
-            st.session_state.total_input_tokens += usage_stats["input"]
-            st.session_state.total_output_tokens += usage_stats["output"]
+        # Wyświetlamy źródła (wspólne dla obu ścieżek)
+        if sources:
+            st.caption(f"Źródła: {', '.join(sources)}")
 
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": answer_text,
-                "sources": sources
-            })
+        # Aktualizacja statystyk sesji (dla cache hit usage_stats = {0, 0})
+        st.session_state.total_input_tokens += usage_stats["input"]
+        st.session_state.total_output_tokens += usage_stats["output"]
 
-            # Wymuszamy odświeżenie paska bocznego (statystyk)
-            st.rerun()
-        else:
-            st.error(
-                "Nie można połączyć się z LM Studio. "
-                "Upewnij się, że jest uruchomione i załadowany model."
-            )
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": answer_text,
+            "sources": sources
+        })
+
+        # Wymuszamy odświeżenie paska bocznego (statystyki tokenów)
+        st.rerun()

@@ -60,7 +60,7 @@ except Exception as e:
 try:
     llm_client = OpenAI(base_url=LM_STUDIO_URL, api_key=LLM_API_KEY)
 except Exception as e:
-    logger.error(f"Błąd podczas inicjalizacji komponentów: {e}")
+    logger.error(f"Błąd podczas inicjalizacji klienta LM Studio: {e}")
     raise RAGInitError(
         f"Nie można połączyć się z LM Studio: {LM_STUDIO_URL}. "
         "Sprawdź czy jest uruchomione i załadowany model."
@@ -138,7 +138,7 @@ def ask_constitution_stream(
     query: str,
     temperature: float = LLM_TEMPERATURE,
     top_k: int = TOP_K
-) -> tuple:
+) -> tuple[object | None, list[str]]:
     """
     Główna funkcja spinająca cały pipeline RAG. Zwraca strumień odpowiedzi.
     """

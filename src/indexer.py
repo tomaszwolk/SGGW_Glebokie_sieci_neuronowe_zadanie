@@ -69,7 +69,7 @@ def create_index(
     logger.info("Generowanie wektorów.")
     total = len(documents)
     embeddings_list: list[NumpyArray] = []
-    for i, emb in enumerate(embedding_model.embed(documents)):
+    for i, emb in enumerate(embedding_model.embed(documents, batch_size=8)):
         embeddings_list.append(emb)
         if progress_callback:
             progress_callback(i + 1, total)

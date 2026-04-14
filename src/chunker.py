@@ -2,8 +2,6 @@ import re
 from loguru import logger
 from config_loader import cfg
 
-KONSTYTUCJA_PATH = cfg["paths"]["data_file"]
-
 
 def parse_constitution(file_path: str) -> list[dict]:
     try:
@@ -118,7 +116,8 @@ def parse_constitution(file_path: str) -> list[dict]:
 
 if __name__ == "__main__":
     # Wyświetlamy dla testów
-    chunks = parse_constitution(KONSTYTUCJA_PATH)
+    konstytucja_path = cfg["paths"]["data_file"]
+    chunks = parse_constitution(konstytucja_path)
 
     if chunks:
         print(f"Liczba wyciągniętych chunków: {len(chunks)}\n")
