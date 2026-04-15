@@ -9,14 +9,9 @@ from functools import partial
 MAX_CONTEXT_TOKENS = cfg["llm"]["max_session_tokens"]
 
 
-def on_progress(
-    current: int,
-    total: int,
-    progress_bar: DeltaGenerator
-) -> None:
+def on_progress(current: int, total: int, progress_bar: DeltaGenerator) -> None:
     progress_bar.progress(
-        current / total,
-        text=f"Generowanie embeddingów: {current}/{total}"
+        current / total, text=f"Generowanie embeddingów: {current}/{total}"
     )
 
 
@@ -32,7 +27,7 @@ _setup_logger()
 st.set_page_config(
     page_title=cfg["ui"]["title"],
     page_icon=cfg["ui"]["page_icon"],
-    layout=cfg["ui"]["layout"]
+    layout=cfg["ui"]["layout"],
 )
 
 
@@ -96,7 +91,7 @@ with st.sidebar:
         max_value=2.0,
         value=cfg["llm"]["temperature"],
         step=0.1,
-        help="Temperature - parametr kontrolujący losowość odpowiedzi modelu."
+        help="Temperature - parametr kontrolujący losowość odpowiedzi modelu.",
     )
     top_k = st.slider(
         "Top K",
@@ -104,7 +99,7 @@ with st.sidebar:
         max_value=10,
         value=cfg["embedding"]["top_k"],
         step=1,
-        help="Top K - liczba najbardziej pasujących fragmentów do wyszukania."
+        help="Top K - liczba najbardziej pasujących fragmentów do wyszukania.",
     )
     st.divider()  # Linia oddzielająca sekcje
     st.header("📊 Statystyki sesji")
@@ -134,7 +129,6 @@ for message in st.session_state.messages:
 
 # Pole do wprowadzania zapytań przez użytkownika
 if prompt := st.chat_input("Zadaj pytanie. Przykład: Kto wypowiada wojnę?"):
-
     # 1. Dodanie pytania użytkownika do historii i wyświetlenie go
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user", avatar="👤"):
@@ -196,7 +190,7 @@ if prompt := st.chat_input("Zadaj pytanie. Przykład: Kto wypowiada wojnę?"):
                 negative_responses = [
                     "konstytucja rp nie reguluje",
                     "nie reguluje tej kwestii",
-                    "nie reguluje kwestii"
+                    "nie reguluje kwestii",
                 ]
                 if any(phrase in answer_text.lower() for phrase in negative_responses):
                     sources = []
@@ -204,7 +198,9 @@ if prompt := st.chat_input("Zadaj pytanie. Przykład: Kto wypowiada wojnę?"):
             # Zapisujemy do cache po odfiltrowaniu źródeł — kolejne identyczne
             # zapytania dostaną już gotowy wynik bez wywołania LLM.
             # usage_stats.copy() zapobiega mutacji zapisanych wartości przez późniejszy kod.
-            cache_answer(prompt, temperature, top_k, answer_text, sources, usage_stats.copy())
+            cache_answer(
+                prompt, temperature, top_k, answer_text, sources, usage_stats.copy()
+            )
 
         # Wyświetlamy źródła (wspólne dla obu ścieżek)
         if sources:
@@ -214,11 +210,9 @@ if prompt := st.chat_input("Zadaj pytanie. Przykład: Kto wypowiada wojnę?"):
         st.session_state.total_input_tokens += usage_stats["input"]
         st.session_state.total_output_tokens += usage_stats["output"]
 
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": answer_text,
-            "sources": sources
-        })
+        st.session_state.messages.append(
+            {"role": "assistant", "content": answer_text, "sources": sources}
+        )
 
         # Wymuszamy odświeżenie paska bocznego (statystyki tokenów)
         st.rerun()

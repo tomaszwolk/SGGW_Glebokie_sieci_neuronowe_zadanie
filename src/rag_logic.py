@@ -6,6 +6,7 @@ from qdrant_client import QdrantClient
 from fastembed import TextEmbedding
 from loguru import logger
 from config_loader import cfg
+from typing import Any, Iterable
 
 # Stałe konfiguracyjne
 QDRANT_DB_PATH = cfg["paths"]["db_path"]
@@ -110,7 +111,7 @@ def stream_answer(
     query: str,
     context: str,
     temperature: float = LLM_TEMPERATURE
-):
+) -> Iterable[Any] | None:
     """
     Wysyła prompt do lokalnego modelu LLM przez LM Studio (Responses API).
     """
@@ -138,7 +139,7 @@ def ask_constitution_stream(
     query: str,
     temperature: float = LLM_TEMPERATURE,
     top_k: int = TOP_K
-) -> tuple[object | None, list[str]]:
+) -> tuple[Iterable[Any] | None, list[str]]:
     """
     Główna funkcja spinająca cały pipeline RAG. Zwraca strumień odpowiedzi.
     """
